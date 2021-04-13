@@ -3,7 +3,12 @@ FIXED_CT_PATH2 = r"D:\Study\Graduation Design\CT Reconstruction\data_src\2017110
 FIXED_CT_PATH3 = r"D:\Study\Graduation Design\CT Reconstruction\data_src\20201014014DAT\202010140140001001.DAT"
 FIXED_CT_PATH4 = r"D:\Study\Graduation Design\CT Reconstruction\data_src\20130613114840DAT\20130613114840.dat"
 
-HELICAL_CT_PATH = r"D:\Study\Graduation Design\CT Reconstruction\data_src\20210225004DAT\20210225004000"
+HELICAL_FAN_CT_PATH1 = r"D:\Study\Graduation Design\CT Reconstruction\data_src\20210225004DAT"
+FILE_NAME_PREFIX1 = r"\2021022500400010"
+
+ORIGIN_INTERPOLATED_DATA_PATH = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\origin interpolated projection data"
+_180MIL_INTERPOLATED_DATA_PATH = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\180MIL interpolated projection data"
+_360MIL_INTERPOLATED_DATA_PATH = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\360MIL interpolated projection data"
 
 RECONSTRUCTION_SAVE_PATH1 = r"D:\Study\Graduation Design\CT Reconstruction\src\reconstruction results"
 

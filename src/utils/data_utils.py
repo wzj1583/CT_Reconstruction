@@ -1,5 +1,5 @@
 from struct import *
-from numpy import np
+import numpy as np
 
 
 def read_data(path, fmt, start, end):
@@ -8,6 +8,16 @@ def read_data(path, fmt, start, end):
         data = unpack(fmt, br[start:end])
         f.close()
     return data
+
+
+def save_data_inserted(path, proj_data_array):
+    proj_data_array.tofile(path)
+    return 0
+
+
+def read_data_inserted(path):
+    proj_date_array = np.fromfile(path, float)
+    return proj_date_array
 
 
 def origin2CT(origin_data, n_width, n_proj_num, n_height):

@@ -159,7 +159,9 @@ class DataFetcher:
     def image_pre(data_graph, zA, zB, eA, eB, width, height):
         zA = (zA + zB) / 2
         eA = (eA + eB) / 2
-        data_graph = data_graph.reshape((width, height))
+        zA = zA.reshape(-1, 1)
+        eA = eA.reshape(-1, 1)
+        data_graph = data_graph.reshape(width, height)
         f_data_graph = np.zeros(data_graph.shape, float)
         temp = 0
         zero_matrix = zA
@@ -168,12 +170,13 @@ class DataFetcher:
             zero_matrix = np.append(zero_matrix, zA, axis=1)
             full_matrix = np.append(zero_matrix, eA, axis=1)
         I = data_graph - zero_matrix
-        I[I < 1] = 1
         I_0 = full_matrix - zero_matrix
-        I_0[I_0 < 1] = I[I_0 < 1]
-        f_data_graph = np.log(I_0/I)
+        tmp = I_0/I
+        tmp[tmp < 1] = 1
+        f_data_graph = np.log(tmp)
         f_data_graph[f_data_graph < 0.000001] = 0
-
+        f_data_graph = f_data_graph.reshape(-1, 1)
+        f_data_graph = f_data_graph.squeeze()
         '''
         for i in range(0, height):
             for j in range(0, width):
