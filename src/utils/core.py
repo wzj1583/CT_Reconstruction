@@ -67,3 +67,49 @@ def _get_FOV_XY(image_size, FOV):
     X = image2FOV * pixel_len
     Y = image2FOV.T * pixel_len
     return X, Y
+
+def smooth_filter(ct_image, kennel_type=2):
+    if kennel_type == 1:
+        filter = np.ones((3,3), float)
+        filter = filter / 9
+    elif kennel_type == 3:
+        filter = np.array([[1, 2, 1], [2, 9, 2], [1, 2, 1]], float)
+        filter = filter / 21
+    else:
+        filter = np.ones((3, 3), float)
+        filter[1][1] = 4
+        filter = filter / 12
+
+    new_ct_image = ct_image.copy()
+    row, col = ct_image.shape
+    for i in range(1, row-1):
+        for j in range(1, col-1):
+            sum = 0
+            sum += ct_image[i-1][j-1]*filter[0][0] + ct_image[i-1][j]*filter[0][1] + ct_image[i-1][j+1]*filter[0][2]
+            sum += ct_image[i][j - 1] * filter[1][0] + ct_image[i][j] * filter[1][1] + ct_image[i][j + 1] * filter[1][2]
+            sum += ct_image[i+1][j - 1] * filter[2][0] + ct_image[i+1][j] * filter[2][1] + ct_image[i+1][j + 1] * filter[2][2]
+            new_ct_image[i][j] = sum
+    return new_ct_image
+
+
+def sharpen_filter(ct_image, kennel_type=2):
+    if kennel_type == 1:
+        filter = np.array([[0,-1,0],[-1,5,-1],[0,-1,0]], float)
+    elif kennel_type == 2:
+        filter = np.array([[-1,-2,-1], [-2, 19, -2], [-1, -2, -1]], float)
+        filter = filter / 7
+    else:
+        filter = np.array([[-1,-1,-1],[-1,9,-1],[-1,-1,-1]], float)
+
+    new_ct_image = ct_image.copy()
+    row, col = ct_image.shape
+    for i in range(1, row - 1):
+        for j in range(1, col - 1):
+            sum = 0
+            sum += ct_image[i - 1][j - 1] * filter[0][0] + ct_image[i - 1][j] * filter[0][1] + ct_image[i - 1][j + 1] * \
+                   filter[0][2]
+            sum += ct_image[i][j - 1] * filter[1][0] + ct_image[i][j] * filter[1][1] + ct_image[i][j + 1] * filter[1][2]
+            sum += ct_image[i + 1][j - 1] * filter[2][0] + ct_image[i + 1][j] * filter[2][1] + ct_image[i + 1][j + 1] * \
+                   filter[2][2]
+            new_ct_image[i][j] = sum
+    return new_ct_image

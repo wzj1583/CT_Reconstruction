@@ -1,16 +1,8 @@
 import numpy as np
 from ctypes import *
 from ctypes.wintypes import *
+from config import fan_ct_milt_layers
 from utils.data_utils import *
-
-
-DET2SCR = 1300
-DET2CEN = 700
-CENTS = 229.5
-DET_NUM = 460
-DET_LAR = 8
-DET_WIDTH = 3.2
-DET_HEIGHT = 0.5
 
 
 class DRGIMAGEHEADER(Structure):
@@ -86,13 +78,13 @@ class Header:
 
 class DetConfig:
     def __init__(self):
-        self.det2scr = DET2SCR  # distance from detector to source
-        self.det2cen = DET2CEN  # distance from detector to center
-        self.cents = CENTS  # ios ray
-        self.det_num = DET_NUM  # amount of detectors
-        self.det_lar = DET_LAR  # amount of detector layers
-        self.det_width = DET_WIDTH  # width of detector
-        self.det_height = DET_HEIGHT    # height of detector
+        self.det2scr = fan_ct_milt_layers["det2src"]  # distance from detector to source
+        self.det2cen = fan_ct_milt_layers["det2cen"]  # distance from detector to center
+        self.cents = fan_ct_milt_layers["cents"]  # ios ray
+        self.det_num = fan_ct_milt_layers["det_num"]  # amount of detectors
+        self.det_lar = fan_ct_milt_layers["det_lar"]  # amount of detector layers
+        self.det_width = fan_ct_milt_layers["det_width"]  # width of detector
+        self.det_height = fan_ct_milt_layers["det_height"]    # height of detector
 
     @staticmethod
     def create_det_config():
@@ -109,6 +101,8 @@ class DataFetcher:
         self.zero_b = zero_b    # light field data B
         self.empty_a = empty_a  # dark field data A
         self.empty_b = empty_b  # dark field data B
+        self.pixel_num = fan_ct_milt_layers["pixel_num"]
+        self.pixel_len = fan_ct_milt_layers["pixel_len"]
 
     @staticmethod
     def create_data_fetcher(path):
@@ -139,7 +133,7 @@ class DataFetcher:
     def read_graph(path, nWidth, nHeight):
         # start = sizeof(DRGIMAGEHEADER)
         start = 256
-        data_graph = np.empty(nHeight)
+        data_graph = np.empty(nHeight, float)
         row_fmt = '<' + str(nHeight) + 'H'
         for i in range(0, nWidth):
             index_start = start + i * nHeight * sizeof(WORD)
@@ -162,7 +156,7 @@ class DataFetcher:
         return array_list
 
     @staticmethod
-    def image_process(data_graph, zA, zB, eA, eB, width, height):
+    def image_pre(data_graph, zA, zB, eA, eB, width, height):
         zA = (zA + zB) / 2
         eA = (eA + eB) / 2
         data_graph = data_graph.reshape((width, height))

@@ -18,3 +18,15 @@ fan_ct_single = {
     "det_width": 2.6,
     "det_height": 0
 }
+
+fan_ct_milt_layers = {
+    "pixel_num": 512,
+    "pixel_len": 1.5,
+    "det2src": 1300.0,
+    "det2cen": 700.0,
+    "cents": 229.5,
+    "det_num": 460,
+    "det_lar": 8,
+    "det_width": 3.2,
+    "det_height": 5
+}
