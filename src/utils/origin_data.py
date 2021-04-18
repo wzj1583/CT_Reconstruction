@@ -14,7 +14,7 @@ class DRGIMAGEHEADER(Structure):
                 ('nCompression', BYTE),
                 ('nBitsPerPixel', BYTE),
                 ('strDate', BYTE * 8),
-                ('strTime', BYTE * 6),
+                ('strTime', BYTE * (6 + 7)),
                 ('nDataOffset', WORD),
                 ('bCorrect', BYTE),
                 ('nDbtRgnCounts', BYTE),
@@ -28,7 +28,7 @@ class DRGIMAGEHEADER(Structure):
                 ('fSpeed', c_double),
                 ('fTemp', c_double),
                 ('nTimeCount', UINT),
-                ('researve', BYTE * (162 + 9))
+                ('researve', BYTE * (164))
                 ]
 
 
@@ -63,14 +63,14 @@ class Header:
     def create_header(data):
         new_header = Header(strType=data[0], nVersion=data[1], nWidth=data[2], nHeight=data[3], nCompression=data[4],
                             nBitsPerPixel=data[5], strDate=data[6:13], strTime=data[14:19], nDataOffset=data[20],
-                            bCorrect=data[21], nDbtRgnCounts=data[22], bChecked=data[23], nCompressLength=data[24],
-                            nScanTime=data[25], nCapSize=data[26], nZeroPos=data[27], fStart=data[28], fend=data[29],
-                            fSpeed=data[30], fTemp=data[31], nTimeCount=data[32], researve=data[33:194])
+                            bCorrect=data[21], nDbtRgnCounts=data[22], bChecked=data[23], nCompressLength=data[27],
+                            nScanTime=data[28], nCapSize=data[29], nZeroPos=data[30], fStart=data[35], fend=data[36],
+                            fSpeed=data[37], fTemp=data[38], nTimeCount=data[39], researve=data[40:203])
         return new_header
 
     @staticmethod
     def read_header(path):
-        header_fmt = '<LLLLBB8B6BHBBBiHHLddddI171B'
+        header_fmt = '<LLLLBB8B6BHBBB3BiHHL4BddddI164B'
         data = read_data(path, header_fmt, 0, sizeof(DRGIMAGEHEADER))
         header = Header.create_header(data)
         return header, data
@@ -82,9 +82,12 @@ class DetConfig:
         self.det2cen = fan_ct_milt_layers["det2cen"]  # distance from detector to center
         self.cents = fan_ct_milt_layers["cents"]  # ios ray
         self.det_num = fan_ct_milt_layers["det_num"]  # amount of detectors
+        self.proj_num = fan_ct_milt_layers["proj_num"]  # amount of projection per cycle
         self.det_lar = fan_ct_milt_layers["det_lar"]  # amount of detector layers
         self.det_width = fan_ct_milt_layers["det_width"]  # width of detector
         self.det_height = fan_ct_milt_layers["det_height"]    # height of detector
+        self.pixel_num = fan_ct_milt_layers["pixel_num"]
+        self.pixel_len = fan_ct_milt_layers["pixel_len"]
 
     @staticmethod
     def create_det_config():
@@ -157,20 +160,23 @@ class DataFetcher:
 
     @staticmethod
     def image_pre(data_graph, zA, zB, eA, eB, width, height):
+        '''
         zA = (zA + zB) / 2
         eA = (eA + eB) / 2
-        zA = zA.reshape(-1, 1)
-        eA = eA.reshape(-1, 1)
+        zA = zA.reshape(1, -1)
+        eA = eA.reshape(1, -1)
         data_graph = data_graph.reshape(width, height)
         f_data_graph = np.zeros(data_graph.shape, float)
         temp = 0
         zero_matrix = zA
         full_matrix = eA
         for i in range(1, width):
-            zero_matrix = np.append(zero_matrix, zA, axis=1)
-            full_matrix = np.append(zero_matrix, eA, axis=1)
+            zero_matrix = np.append(zero_matrix, zA, axis=0)
+            full_matrix = np.append(full_matrix, eA, axis=0)
         I = data_graph - zero_matrix
+        I[I < 1] = 1
         I_0 = full_matrix - zero_matrix
+        I_0[I_0 < 0] = 0
         tmp = I_0/I
         tmp[tmp < 1] = 1
         f_data_graph = np.log(tmp)
@@ -178,6 +184,9 @@ class DataFetcher:
         f_data_graph = f_data_graph.reshape(-1, 1)
         f_data_graph = f_data_graph.squeeze()
         '''
+        f_data_graph = np.zeros(data_graph.shape, float)
+        zA = (zA + zB) / 2
+        eA = (eA + eB) / 2
         for i in range(0, height):
             for j in range(0, width):
                 temp = data_graph[j * height + i] - zA[i]
@@ -187,8 +196,7 @@ class DataFetcher:
                     temp = np.log((eA[i] - zA[i]) / temp)
                 else:
                     temp = 0
-                data_graph_float[j * height + i] = temp
+                f_data_graph[j * height + i] = temp
                 if temp <= 0.000001:
-                    data_graph_float[j * height + i] = 0
-        '''
+                    f_data_graph[j * height + i] = 0
         return f_data_graph

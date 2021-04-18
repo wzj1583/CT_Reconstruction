@@ -4,7 +4,7 @@ FIXED_CT_PATH3 = r"D:\Study\Graduation Design\CT Reconstruction\data_src\2020101
 FIXED_CT_PATH4 = r"D:\Study\Graduation Design\CT Reconstruction\data_src\20130613114840DAT\20130613114840.dat"
 
 HELICAL_FAN_CT_PATH1 = r"D:\Study\Graduation Design\CT Reconstruction\data_src\20210225004DAT"
-FILE_NAME_PREFIX1 = r"\2021022500400010"
+FILE_NAME_PREFIX1 = r"\20210225004000"
 
 ORIGIN_INTERPOLATED_DATA_PATH = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\origin interpolated projection data"
 _180MIL_INTERPOLATED_DATA_PATH = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\180MIL interpolated projection data"
@@ -33,5 +33,6 @@ fan_ct_milt_layers = {
     "det_num": 460,
     "det_lar": 8,
     "det_width": 3.2,
-    "det_height": 5
+    "det_height": 5,
+    "proj_num": 1000
 }

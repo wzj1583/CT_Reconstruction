@@ -5,6 +5,7 @@ from utils.image_save import *
 from utils.core import *
 from utils.filter import get_filter_RL, get_filter_SL
 from utils.origin_data_single import _DataFetcher
+from utils.origin_data import DataFetcher, DetConfig
 from utils.fan_adj import adj_fan, adj_fan_fine, adj_fan_fine_with_factor
 
 
@@ -28,12 +29,8 @@ def fan_CT_Single(origin_data: _DataFetcher, n_image_size, n_proj_num):
     proj_ang = 2 * pi / n_proj_num  # 投影角步长
     cent_ang = f_cent_pos * det_ang  # 中心投影线角度
     ang = n_det_num * det_ang  # 扇形束夹角
-
     proj_float = _DataFetcher.image_pre(f_proj_data, f_zero, f_full, n_width, n_height)
-
     h = get_filter_SL(det_ang, n_det_num)
-
-
     #sin_list, cos_list = sincos(n_proj_num, proj_ang)
     sin_list, cos_list = sincos(n_proj_num, -proj_ang)
 
@@ -53,19 +50,54 @@ def fan_CT_Single(origin_data: _DataFetcher, n_image_size, n_proj_num):
         srt_idx = i * n_det_num
         end_idx = srt_idx + n_det_num
         temp = proj_float[srt_idx:end_idx]
-
         proj_float[srt_idx:end_idx] = conv2(temp, h)
         #ct_image += _back_proj(proj_float[srt_idx:end_idx], n_image_size, f_FOV, sin_list[i], cos_list[i], f_cen2src, n_det_num, det_ang, f_cent_pos)
-
         #ct_image += back_proj_rotate_src(proj_float[srt_idx:end_idx], n_image_size, X_0, Y_0, sin_list[i], cos_list[i], f_cen2src, n_det_num, det_ang, f_cent_pos)
-
         ct_image += back_proj_rotate_pixel(proj_float[srt_idx:end_idx], n_image_size, X_0, Y_0, sin_list[i], cos_list[i], f_cen2src, n_det_num, det_ang, f_cent_pos)
-
-
     res_list.append(ct_image)
 
     save_image(res_list)
     return res_list
+
+
+def fan_CT(proj_float, n_image_size, n_proj_num):
+    det_config = DetConfig.create_det_config()
+    f_pixel_len = det_config.pixel_len  # 重建图像像素宽度 1.5mm
+    n_pixel_num = det_config.pixel_num  # 重建图像分辨率 512
+    n_det_num = det_config.det_num  # 探测器数量 460
+    f_cen2src = det_config.det2cen  # 射线源-旋转中心距离 700.0mm
+    f_det2src = det_config.det2scr  # 射线源-探测器距离 1300.0mm
+    f_cent_pos = det_config.cents  # 中心投影线序号 229.5
+    n_layer_num = det_config.det_lar  # 探测器层数 8
+    f_det_width = det_config.det_width  # 探测器宽度 3.2mm
+    f_FOV = f_pixel_len * n_pixel_num  # 视场
+    d_det_ang = f_det_width / f_det2src  # 投影线间角
+    d_proj_ang = 2 * pi / n_proj_num  # 投影角步长 1000
+    cent_ang = f_cent_pos * d_det_ang  # 中心投影线角度
+    fan_ang = n_det_num * d_det_ang  # 扇形束夹角
+
+    h = get_filter_SL(d_det_ang, n_det_num)
+    X_0, Y_0 = get_FOV_XY(n_image_size, f_FOV)  # rotate_pixel
+    # X_0, Y_0 = _get_FOV_XY(n_image_size, f_FOV)     # rotate_src
+    #sin_list, cos_list = sincos(n_proj_num, proj_ang)
+    sin_list, cos_list = sincos(n_proj_num, d_proj_ang)
+    ct_image = np.zeros((n_image_size, n_image_size), float)
+    res = []
+    for i in range(0, n_proj_num):
+        srt_idx = i * n_det_num
+        end_idx = srt_idx + n_det_num
+        temp = proj_float[srt_idx:end_idx]
+        proj_float[srt_idx:end_idx] = adj_fan_fine(temp, d_det_ang, cent_ang, f_cen2src, n_det_num)
+        temp = proj_float[srt_idx:end_idx]
+        proj_float[srt_idx:end_idx] = conv2(temp, h)
+        #ct_image += _back_proj(proj_float[srt_idx:end_idx], n_image_size, f_FOV, sin_list[i], cos_list[i], f_cen2src, n_det_num, det_ang, f_cent_pos)
+        #ct_image += back_proj_rotate_src(proj_float[srt_idx:end_idx], n_image_size, X_0, Y_0, sin_list[i], cos_list[i], f_cen2src, n_det_num, det_ang, f_cent_pos)
+        ct_image += back_proj_rotate_pixel(proj_float[srt_idx:end_idx], n_image_size, X_0, Y_0, sin_list[i], cos_list[i], f_cen2src, n_det_num, d_det_ang, f_cent_pos)
+        if (i+1) % 100 == 0:
+            print(str(i+1) + '/' + str(n_proj_num))
+    res.append(ct_image)
+    save_image(res)
+    return res
 
 
 
