@@ -1,9 +1,9 @@
 import os
 import config
 from numpy import pi, arctan, arcsin, sqrt, power
-from MIL.helical_180_core import helical_180IL, helical_180MIL, origin2CT
+from MIL.helical_180_core import helical_180IL, helical_180MIL
 from MIL.fan_CT_core import back_proj_rotate_pixel, _back_proj, back_proj_rotate_src
-from utils.core import _get_FOV_XY
+from utils.origin2CT import origin2CT_batch
 from utils.image_save import *
 from utils.core import *
 from utils.filter import get_filter_RL, get_filter_SL
@@ -63,59 +63,6 @@ def helical_180IL_back_project(origin_data: _DataFetcher, n_image_size, n_proj_n
     save_image(res_list)
     return res_list
 
-def helical_180MIL_back_project(n_image_size, n_proj_num):
-    path = config.HELICAL_FAN_CT_PATH1 + config.FILE_NAME_PREFIX1 + '1001' + ".DAT"
-    origin_data = DataFetcher.create_data_fetcher(path)
-    interpolated_layer_num = 8
-
-    f_pixel_len = origin_data.pixel_len  # 重建图像像素宽度 1.5mm
-    n_pixel_num = origin_data.pixel_num  # 重建图像分辨率 512
-    n_det_num = origin_data.det_config.det_num  # 探测器数量 460
-    f_cen2src = origin_data.det_config.det2cen  # 射线源-旋转中心距离 700.0mm
-    f_det2src = origin_data.det_config.det2scr  # 射线源-探测器距离 1300.0mm
-    f_cent_pos = origin_data.det_config.cents  # 中心投影线序号 229.5
-    n_layer_num = origin_data.det_config.det_lar  # 探测器层数 8
-    f_det_width = origin_data.det_config.det_width  # 探测器宽度 3.2mm
-    f_layer_thick = origin_data.det_config.det_height
-    f_pitch_layer = (origin_data.header.fStart - origin_data.header.fend)/n_layer_num
-    f_FOV = f_pixel_len * n_pixel_num  # 视场
-    d_det_ang = f_det_width / f_det2src  # 投影线间角
-    d_proj_ang = 2 * pi / n_proj_num  # 投影角步长 1000
-    cent_ang = f_cent_pos * d_det_ang  # 中心投影线角度
-    fan_ang = n_det_num * d_det_ang  # 扇形束夹角
-
-    # batch generate interpolated projection data
-    origin2CT_batch(n_proj_num)
-
-    # generate 180MIL projection data
-    origin_interpolated_path = config.ORIGIN_INTERPOLATED_DATA_PATH + '\\'
-    file_num = len(os.listdir(origin_interpolated_path))
-    for i in range(1001, 1001 + file_num):
-        file_path_prev = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i) + ".bin"
-        f_prev_proj_data = read_interpolated_data(file_path_prev)
-        file_path_rear = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i + 1) + ".bin"
-        f_rear_proj_data = read_interpolated_data(file_path_rear)
-        f_proj_data = np.append(f_prev_proj_data, f_rear_proj_data, axis=0)
-        for n_cur_slice in range(0, interpolated_layer_num):
-            f_180MIL_proj_slice = helical_180MIL(f_proj_data, n_det_num, fan_ang, cent_ang, n_proj_num, n_layer_num,
-                                                f_layer_thick, f_pitch_layer, n_cur_slice)
-            interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i) + '-' + str(n_cur_slice + 1) + ".bin"
-            save_interpolated_data(interpolated_save_path, f_180MIL_proj_slice)
-
-    # read 180MIL interpolated data
-    interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + '\\'
-    file_num = len(os.listdir(interpolated_save_path))
-    for i in range(1001, 1001 + file_num):
-        interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i) + ".bin"
-        f_proj_data = read_interpolated_data(interpolated_save_path)
-        for j in range(0, interpolated_layer_num):
-            f_proj_layer_data = f_proj_data[j*n_proj_num*n_det_num: (j+1)*n_proj_num*n_det_num]
-            ct_image = fan_CT(f_proj_layer_data, n_image_size, n_proj_num)
-            res = []
-            res.append(ct_image)
-            save_image(res)
-    return 0
-
 
 def helical_180IL_back_project_test(f_proj_data, parameters, n_image_size):
     n_det_num = parameters.n_det_num
@@ -164,45 +111,60 @@ def helical_180IL_back_project_test(f_proj_data, parameters, n_image_size):
     return res_list
 
 
-def origin2CT_batch(n_proj_num):
-    data_path = config.HELICAL_FAN_CT_PATH1 + '\\'
-    file_num = len(os.listdir(data_path))
+def helical_180MIL_back_project(n_image_size, n_proj_num):
+    interpolated_layer_num = 8
+    det_config = DetConfig.create_det_config()
+
+    f_pixel_len = det_config.pixel_len  # 重建图像像素宽度 1.5mm
+    n_pixel_num = det_config.pixel_num  # 重建图像分辨率 512
+    n_det_num = det_config.det_num  # 探测器数量 460
+    f_cen2src = det_config.det2cen  # 射线源-旋转中心距离 700.0mm
+    f_det2src = det_config.det2scr  # 射线源-探测器距离 1300.0mm
+    f_cent_pos = det_config.cents  # 中心投影线序号 229.5
+    n_layer_num = det_config.det_lar  # 探测器层数 8
+    f_det_width = det_config.det_width  # 探测器宽度 3.2mm
+    f_layer_thick = det_config.det_height
+    f_FOV = f_pixel_len * n_pixel_num  # 视场
+    d_det_ang = f_det_width / f_det2src  # 投影线间角
+    d_proj_ang = 2 * pi / n_proj_num  # 投影角步长 1000
+    cent_ang = f_cent_pos * d_det_ang  # 中心投影线角度
+    fan_ang = n_det_num * d_det_ang  # 扇形束夹角
+
+    # batch generate interpolated projection data
+    origin2CT_batch(n_proj_num)
+
+    # generate 180MIL projection data
+    origin_interpolated_path = config.ORIGIN_INTERPOLATED_DATA_PATH + '\\'
+    file_num = len(os.listdir(origin_interpolated_path))
+    for index in range(1, file_num + 1):
+        proj_data, paraments = ParaTransfer.pack_para_transfer(index, is_origin=0)
+        f_pitch_layer = paraments.f_pitch_layer
+        file_path_prev = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(1000 + index) + ".bin"
+        f_prev_proj_data = read_interpolated_data(file_path_prev)
+        file_path_rear = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(1000 + index + 1) + ".bin"
+        f_rear_proj_data = read_interpolated_data(file_path_rear)
+        f_proj_data = np.append(f_prev_proj_data, f_rear_proj_data, axis=0)
+        for n_cur_slice in range(0, interpolated_layer_num):
+            offset = n_proj_num * n_cur_slice / n_layer_num
+            offset = int(offset * n_det_num * n_layer_num)
+            f_180MIL_proj_slice = helical_180MIL(f_proj_data[offset:], n_det_num, fan_ang, cent_ang, n_proj_num, n_layer_num,
+                                                f_layer_thick, f_pitch_layer, n_cur_slice)
+            interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(1000 + index) + ".bin"
+            save_interpolated_data(interpolated_save_path, f_180MIL_proj_slice)
+
+    # read 180MIL interpolated data
+    interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + '\\'
+    file_num = len(os.listdir(interpolated_save_path))
     for i in range(1001, 1001 + file_num):
-        path = config.HELICAL_FAN_CT_PATH1 + config.FILE_NAME_PREFIX1 + str(i) + ".DAT"
-        origin_data = DataFetcher.create_data_fetcher(path)
-        f_origin_data = origin_data.data_buff
-        f_zero_a = origin_data.zero_a
-        f_zero_b = origin_data.zero_b
-        f_full_a = origin_data.empty_a
-        f_full_b = origin_data.empty_b
-        n_width = origin_data.header.nWidth
-        n_height = origin_data.header.nHeight
-        f_prev_proj_data = DataFetcher.image_pre(f_origin_data, f_zero_a, f_zero_b, f_full_a, f_full_b, n_width,
-                                                     n_height)
-        f_prev_proj_data = origin2CT(f_prev_proj_data, n_width, n_proj_num, n_height)
-        origin_interpolated_path = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i) + ".bin"
-        save_interpolated_data(origin_interpolated_path, f_prev_proj_data)
-        print("Interpolate: " + str(i) + '/' + str(file_num))
+        interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i) + ".bin"
+        f_proj_data = read_interpolated_data(interpolated_save_path)
+        for j in range(0, interpolated_layer_num):
+            f_proj_layer_data = f_proj_data[j*n_proj_num*n_det_num: (j+1)*n_proj_num*n_det_num]
+            ct_image = fan_CT(f_proj_layer_data, n_image_size, n_proj_num)
+            res = []
+            res.append(ct_image)
+            save_image(res)
     return 0
-
-
-def origin2CT_single(index, n_proj_num):
-    path = config.HELICAL_FAN_CT_PATH1 + config.FILE_NAME_PREFIX1 + str(1000 + index) + ".DAT"
-    origin_data = DataFetcher.create_data_fetcher(path)
-    f_origin_data = origin_data.data_buff
-    f_zero_a = origin_data.zero_a
-    f_zero_b = origin_data.zero_b
-    f_full_a = origin_data.empty_a
-    f_full_b = origin_data.empty_b
-    n_width = origin_data.header.nWidth
-    n_height = origin_data.header.nHeight
-    f_prev_proj_data = DataFetcher.image_pre(f_origin_data, f_zero_a, f_zero_b, f_full_a, f_full_b, n_width, n_height)
-    if n_width != n_proj_num:
-        f_prev_proj_data = origin2CT(f_prev_proj_data, n_width, n_proj_num, n_height)
-    origin_interpolated_path = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(
-            1000 + index) + ".bin"
-    save_interpolated_data(origin_interpolated_path, f_prev_proj_data)
-    return origin_interpolated_path
 
 
 def helical_180MIL_interpolate_batch(parameters: ParaTransfer, interpolated_layer_num):
@@ -222,10 +184,10 @@ def helical_180MIL_interpolate_batch(parameters: ParaTransfer, interpolated_laye
 
     origin_interpolated_path = config.ORIGIN_INTERPOLATED_DATA_PATH + '\\'
     file_num = len(os.listdir(origin_interpolated_path))
-    for i in range(1001, 1001 + file_num):
-        file_path_prev = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i) + ".bin"
+    for index in range(1, file_num + 1):
+        file_path_prev = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(1000 + index) + ".bin"
         f_prev_proj_data = read_interpolated_data(file_path_prev)
-        file_path_rear = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i + 1) + ".bin"
+        file_path_rear = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(1000+ index + 1) + ".bin"
         f_rear_proj_data = read_interpolated_data(file_path_rear)
         f_proj_data = np.append(f_prev_proj_data, f_rear_proj_data, axis=0)
         for n_cur_slice in range(0, interpolated_layer_num):
@@ -233,8 +195,7 @@ def helical_180MIL_interpolate_batch(parameters: ParaTransfer, interpolated_laye
             offset = int(offset * n_det_num * n_layer_num)
             f_180MIL_proj_slice = helical_180MIL(f_proj_data[offset:], n_det_num, fan_ang, cent_ang, n_proj_num, n_layer_num,
                                                  f_layer_thick, f_pitch_layer, n_cur_slice)
-            interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(
-                i) + '-' + str(n_cur_slice + 1) + ".bin"
+            interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(i) + ".bin"
             save_interpolated_data(interpolated_save_path, f_180MIL_proj_slice)
     return 0
 
@@ -254,7 +215,6 @@ def helical_180MIL_interpolate_single(index, parameters: ParaTransfer, interpola
     n_layer_num = parameters.n_layer_num
     f_pitch_layer = parameters.f_pitch_layer
 
-    origin_interpolated_path = config.ORIGIN_INTERPOLATED_DATA_PATH + '\\'
     file_path_prev = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(1000 + index) + ".bin"
     f_prev_proj_data = read_interpolated_data(file_path_prev)
     file_path_rear = config.ORIGIN_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(1000 + index + 1) + ".bin"
@@ -262,7 +222,9 @@ def helical_180MIL_interpolate_single(index, parameters: ParaTransfer, interpola
     f_proj_data = np.append(f_prev_proj_data, f_rear_proj_data, axis=0)
     f_180MIL_proj = np.zeros(1, float)
     for n_cur_slice in range(0, interpolated_layer_num):
-        f_180MIL_proj_slice = helical_180MIL(f_proj_data, n_det_num, fan_ang, cent_ang, n_proj_num, n_layer_num,
+        offset = n_proj_num * n_cur_slice / n_layer_num
+        offset = int(offset * n_det_num * n_layer_num)
+        f_180MIL_proj_slice = helical_180MIL(f_proj_data[offset:], n_det_num, fan_ang, cent_ang, n_proj_num, n_layer_num,
                                                  f_layer_thick, f_pitch_layer, n_cur_slice)
         f_180MIL_proj = np.append(f_180MIL_proj, f_180MIL_proj_slice)
     interpolated_save_path = config._180MIL_INTERPOLATED_DATA_PATH + config.FILE_NAME_PREFIX1 + str(1000 + index) + ".bin"

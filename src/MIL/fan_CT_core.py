@@ -1,4 +1,5 @@
 import numpy as np
+from math import asin, sqrt
 from numpy import power, sqrt, arcsin, trunc
 
 
@@ -25,6 +26,24 @@ def back_proj_rotate_pixel(proj_data, image_size, X_0, Y_0, _sin, _cos, det2cen,
     ct_image = 10 * ct_image
     return ct_image
 
+def back_proj_rotate_pixel(proj_data, image_size, X_0, Y_0, _sin, _cos, det2cen, det_num, d_det_ang, cents):
+    ct_image = np.zeros((image_size, image_size), float)
+    for i in range(0, image_size):
+        for j in range(0, image_size):
+            x = X_0[i][j]*_cos - Y_0[i][j]*_sin
+            y = X_0[i][j]*_sin - Y_0[i][j]*_cos
+            L2 = x*x + y*y
+            pixel_ang = asin(x / sqrt(L2))
+            pixel_idx = pixel_ang / d_det_ang + cents
+            if pixel_idx < 0:
+                break
+            if pixel_idx > det_num - 1:
+                break
+            pixel_det_idx = int(pixel_idx)
+            pos = pixel_det_idx - pixel_idx
+            ct_image[i][j] += ((1 - pos) * proj_data[pixel_det_idx] + pos * proj_data[pixel_det_idx + 1]) / L2
+            ct_image[i][j] *= 10
+    return ct_image
 
 def back_proj_rotate_src(proj_data, image_size, X, Y, _sin, _cos, det2cen, det_num, dbeta, cents):
     ct_image = np.zeros((image_size, image_size), float)

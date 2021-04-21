@@ -9,6 +9,7 @@ FILE_NAME_PREFIX1 = r"\20210225004000"
 ORIGIN_INTERPOLATED_DATA_PATH = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\origin interpolated projection data"
 _180MIL_INTERPOLATED_DATA_PATH = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\180MIL interpolated projection data"
 _360MIL_INTERPOLATED_DATA_PATH = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\360MIL interpolated projection data"
+RECONSTRUCTION_RESULT = r"D:\Study\Graduation Design\CT Reconstruction\src\data repository\reconstruction result"
 
 RECONSTRUCTION_SAVE_PATH1 = r"D:\Study\Graduation Design\CT Reconstruction\src\reconstruction results"
 

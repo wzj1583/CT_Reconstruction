@@ -10,14 +10,14 @@ def helical_360MIL(f_proj_data, n_det_num, fan_ang, cent_ang, n_proj_num, n_laye
                    n_cur_slice):
     inpolated_proj_data = np.zeros(n_proj_num * n_det_num, float)
 
-    inter_start_idx = n_cur_slice * n_proj_num / n_layer_num
+    interp_start_idx = n_cur_slice * n_proj_num / n_layer_num
     f_pitch_proj = f_pitch_layer * n_layer_num
     f_cur_slice_z = (f_pitch_proj + n_layer_num * f_layer_thick) / 2
     for i in range(0, n_proj_num):
         cur_proj_idx = i
         f_cur_bottom_layer_z = f_pitch_proj * cur_proj_idx / n_proj_num + f_layer_thick / 2
-        n_cur_inter_start_idx = int(((cur_proj_idx + inter_start_idx) % n_proj_num) * n_det_num)
-        cur_orig_start_idx = cur_proj_idx * n_det_num * n_layer_num
+        cur_interp_start_idx = int(((cur_proj_idx + interp_start_idx) % n_proj_num) * n_det_num)
+        orig_start_idx = cur_proj_idx * n_det_num * n_layer_num
 
         origin_idx = n_layer_num - 1
         for k in range(0, n_layer_num):
@@ -37,7 +37,7 @@ def helical_360MIL(f_proj_data, n_det_num, fan_ang, cent_ang, n_proj_num, n_laye
 
         for j in range(0, n_det_num):
             if origin_idx < n_layer_num - 1:
-                inpolated_proj_data[n_cur_inter_start_idx + j] = (1-w)*f_proj_data[cur_orig_start_idx+origin_idx*n_det_num+j] + w*f_proj_data[cur_orig_start_idx + (origin_idx+1)*n_det_num+j]
+                inpolated_proj_data[cur_interp_start_idx + j] = (1-w)*f_proj_data[orig_start_idx+origin_idx*n_det_num+j] + w*f_proj_data[orig_start_idx + (origin_idx+1)*n_det_num+j]
             else:
-                inpolated_proj_data[n_cur_inter_start_idx + j] = f_proj_data[cur_orig_start_idx+origin_idx*n_det_num+j]
+                inpolated_proj_data[cur_interp_start_idx + j] = f_proj_data[orig_start_idx+origin_idx*n_det_num+j]
     return inpolated_proj_data

@@ -1,14 +1,9 @@
 import config
-import os
-import time
-import struct
-import numpy as np
-
 from utils.origin_data import Header, DataFetcher
-from utils.origin_data_single import _DataFetcher
 from utils.processed_data import ParaTransfer
 from utils.data_utils import save_interpolated_data, read_interpolated_data
-from MIL.helticl_180 import helical_180IL_back_project_test, helical_180MIL_interpolate_single, origin2CT_single
+from MIL.helticl_180 import helical_180IL_back_project_test, helical_180MIL_interpolate_single
+from utils.origin2CT import origin2CT_single
 from MIL.helical_360 import helical_360MIL_interpolate_single
 from MIL.fan_CT import fan_CT
 
