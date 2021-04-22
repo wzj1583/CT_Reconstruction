@@ -8,6 +8,7 @@ from MIL.helical_360 import helical_360MIL_interpolate_single
 from MIL.fan_CT import fan_CT
 
 if __name__ == '__main__':
+    '''
     image_size = 512
     index = 30
     is_origin = 0
@@ -36,13 +37,6 @@ if __name__ == '__main__':
     if is_origin == 1:
         f_proj_data, parameters = ParaTransfer.pack_para_transfer(index, is_origin=1)
         res_list = helical_180IL_back_project_test(f_proj_data, parameters, image_size)
-        '''
-        f_proj_data = f_proj_data.reshape(parameters.n_proj_num, -1)
-        f_proj_data = f_proj_data[:, 3 * 460:4 * 460]
-        f_proj_data = f_proj_data.reshape(-1, 1)
-        f_proj_data = np.squeeze(f_proj_data)
-        res_list = fan_CT(f_proj_data, image_size, parameters.n_proj_num)
-        '''
     else:
         path = MIL_path
         f_proj_data, parameters = ParaTransfer.pack_para_transfer(index, path=path, is_origin=0)
@@ -51,5 +45,11 @@ if __name__ == '__main__':
         else:
             f_proj_layer_data = f_proj_data[0:460 * 1000]
             res_list = fan_CT(f_proj_layer_data, image_size, 1000)
+    '''
 
+    from cuda_kernal.cuda_conv import conv_verify
+    # conv_verify()
+
+    from cuda_kernal.back_project import back_proj_verify
+    # back_proj_verify(512)
     print('done')
