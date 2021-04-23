@@ -48,8 +48,12 @@ if __name__ == '__main__':
     '''
 
     from cuda_kernal.cuda_conv import conv_verify
-    # conv_verify()
+    #conv_verify()
 
     from cuda_kernal.back_project import back_proj_verify
-    # back_proj_verify(512)
+    #back_proj_verify(512)
+
+    from cuda_kernal.fan_CT import fan_CT_acc
+    fan_CT_acc(512)
+
     print('done')

@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from numpy import pi
-from numba import cuda
+from numba import cuda, float64
 
 import config
 from utils.core import conv2
@@ -19,6 +19,9 @@ def cuda_conv2(buf, h, res, len):
             tmp += buf[index + j] * h[i - j]
         for j in range(i, len):
             tmp += buf[index + j] * h[j - i]
+
+        cuda.syncthreads()
+
         res[index + i] = tmp
 
 
@@ -71,6 +74,7 @@ def conv_verify():
     end = time.time()
     gpu_time = end - start
 
+
     start = time.time()
     cpu_res = np.zeros(proj_float.shape, float)
     for i in range(0, n_proj_num):
@@ -82,6 +86,8 @@ def conv_verify():
     cpu_time = end - start
 
     print('CPU: ' + str(cpu_time))
+
+
     print('GPU: ' + str(gpu_time))
 
     return 0

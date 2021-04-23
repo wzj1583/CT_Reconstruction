@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from numpy import pi
-from numba import cuda
+from numba import cuda, float64
 from math import asin, sqrt
 
 import config
@@ -14,51 +14,52 @@ from MIL.fan_CT_core import back_proj_rotate_pixel
 from cuda_kernal.cuda_conv import main_conv2
 
 
-@cuda.jit
-def cuda_back_proj(proj_data, ct_image, X_0, Y_0, _sin, _cos, det_num, d_det_ang, cents, n_proj_num):
+@cuda.jit #[512, 512]
+def cuda_back_proj(proj_data, ct_image, X_0, Y_0, _sin, _cos, det_num, cent2src, d_det_ang, cents, n_proj_num):
     i = cuda.threadIdx.x
-    j = cuda.threadIdx.y
+    j = cuda.blockIdx.x
+    ct_image[i][j] = 0
     for k in range(0, n_proj_num):
-        offset = i * det_num
+        tmp = 0
+        offset = k * det_num
         x = X_0[i][j]*_cos[k] - Y_0[i][j]*_sin[k]
-        y = X_0[i][j]*_sin[k] - Y_0[i][j]*_cos[k]
-        L2 = x*x + y*y
+        y = X_0[i][j]*_sin[k] + Y_0[i][j]*_cos[k]
+        L2 = x*x + (y + cent2src)*(y + cent2src)
         pixel_ang = asin(x / sqrt(L2))
         pixel_idx = pixel_ang / d_det_ang + cents
         if pixel_idx < 0:
-            ct_image[i][j] = 0
+            continue
         elif pixel_idx > det_num - 1:
-            ct_image[i][j] = 0
-        else:
-            pixel_det_idx = int(pixel_idx)
-            pos = pixel_det_idx - pixel_idx
-            ct_image[i][j] += ((1 - pos) * proj_data[offset + pixel_det_idx] + pos * proj_data[offset + pixel_det_idx + 1]) / L2
-        ct_image[i][j] *= 10
+            continue
+        pixel_det_idx = int(pixel_idx)
+        pos = pixel_idx - pixel_det_idx
+        tmp += ((1 - pos) * proj_data[offset + pixel_det_idx] + pos * proj_data[offset + pixel_det_idx + 1]) / L2
+        ct_image[i][j] += 10 * tmp
+    cuda.syncthreads()
 
 
-@cuda.jit
-def cuda_back_proj_modify(proj_data, ct_image, X_0, Y_0, _sin, _cos, det_num, d_det_ang, cents, n_proj_num):
+@cuda.jit #[(512,512), 1000]
+def cuda_back_proj_modify(proj_data, ct_image, X_0, Y_0, _sin, _cos, det_num, cent2src, d_det_ang, cents, n_proj_num):
     i = cuda.blockIdx.x
     j = cuda.blockIdx.y
     k = cuda.threadIdx.x
-    offset = i * det_num
-    x = X_0[i][j]*_cos[k] - Y_0[i][j]*_sin[k]
-    y = X_0[i][j]*_sin[k] - Y_0[i][j]*_cos[k]
-    L2 = x*x + y*y
+    offset = k * det_num
+    x = X_0[i][j] * _cos[k] - Y_0[i][j] * _sin[k]
+    y = X_0[i][j] * _sin[k] + Y_0[i][j] * _cos[k]
+    L2 = x*x + (y + cent2src)*(y + cent2src)
     pixel_ang = asin(x / sqrt(L2))
     pixel_idx = pixel_ang / d_det_ang + cents
     if pixel_idx < 0:
-        ct_image[i][j] = 0
+        pixel_idx = 0
     elif pixel_idx > det_num - 1:
-        ct_image[i][j] = 0
-    else:
-        pixel_det_idx = int(pixel_idx)
-        pos = pixel_det_idx - pixel_idx
-        ct_image[i][j] += ((1 - pos) * proj_data[offset + pixel_det_idx] + pos * proj_data[offset + pixel_det_idx + 1]) / L2
-    ct_image[i][j] *= 10
+        pixel_idx = det_num - 2
+    pixel_det_idx = int(pixel_idx)
+    pos = pixel_idx - pixel_det_idx
+    ct_image[i][j] += ((1 - pos) * proj_data[offset + pixel_det_idx] + pos * proj_data[offset + pixel_det_idx + 1]) / L2
+    cuda.syncthreads()
 
 
-def main_back_proj(proj_data, image_size, det_num, d_proj_ang, d_det_ang, cents, f_FOV, n_proj_num):
+def main_back_proj(proj_data, image_size, det_num, cent2src, d_proj_ang, d_det_ang, cents, f_FOV, n_proj_num):
     X_0, Y_0 = get_FOV_XY(image_size, f_FOV)
     sin_list, cos_list = sincos(n_proj_num, d_proj_ang)
     sin_array = np.array(sin_list)
@@ -70,9 +71,9 @@ def main_back_proj(proj_data, image_size, det_num, d_proj_ang, d_det_ang, cents,
     dev_cos_array = cuda.to_device(cos_array)
     ct_image = cuda.device_array((image_size, image_size), float)
 
-    #cuda_back_proj[image_size, image_size](dev_proj_data, ct_image, dev_X_0, dev_Y_0, dev_sin_array, dev_cos_array, det_num, d_det_ang, cents, n_proj_num)
+    #cuda_back_proj[image_size, image_size](dev_proj_data, ct_image, dev_X_0, dev_Y_0, dev_sin_array, dev_cos_array, det_num, cent2src, d_det_ang, cents, n_proj_num)
 
-    cuda_back_proj_modify[(image_size, image_size), n_proj_num](dev_proj_data, ct_image, dev_X_0, dev_Y_0, dev_sin_array, dev_cos_array, det_num, d_det_ang, cents, n_proj_num)
+    cuda_back_proj_modify[(image_size, image_size), n_proj_num](dev_proj_data, ct_image, dev_X_0, dev_Y_0, dev_sin_array, dev_cos_array, det_num, cent2src, d_det_ang, cents, n_proj_num)
 
     res = ct_image.copy_to_host()
     return res
@@ -120,7 +121,7 @@ def back_proj_verify(image_size):
     end = time.time()
     gpu_time = end - start
 
-    '''
+
     start = time.time()
     cpu_ct_image = np.zeros((image_size, image_size), float)
     X_0, Y_0 = get_FOV_XY(image_size, f_FOV)
@@ -133,7 +134,7 @@ def back_proj_verify(image_size):
     cpu_time = end - start
     
     print('CPU: ' + str(cpu_time))
-    '''
+
     print('GPU: ' + str(gpu_time))
 
     return 0

@@ -35,8 +35,6 @@ def _back_proj_rotate_pixel(proj_data, image_size, X_0, Y_0, _sin, _cos, det2cen
             L2 = x*x + y*y
             pixel_ang = asin(x / sqrt(L2))
             pixel_idx = pixel_ang / d_det_ang + cents
-            if np.isnan(pixel_idx):
-                print("fuck")
             if pixel_idx < 0:
                 ct_image[i][j] = 0
             elif pixel_idx > det_num - 1:

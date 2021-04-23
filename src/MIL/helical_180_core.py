@@ -17,7 +17,7 @@ def helical_180IL(f_proj_data, n_det_num, fan_ang, cent_ang, n_slice_num, plane_
                 cur_det_ang = j * d_det_ang - cent_ang
                 nxt_det_ang = -cur_det_ang + cent_ang
                 cur_proj_ang = i * d_slice_ang
-                nxt_proj_ang = cur_proj_ang + pi + 2 * cur_det_ang
+                nxt_proj_ang = cur_proj_ang + pi - 2 * cur_det_ang
                 if nxt_proj_ang - 2 * pi > 0:
                     nxt_proj_ang = nxt_proj_ang - 2 * pi
                 cur_det_pos = j
